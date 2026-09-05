@@ -34,6 +34,11 @@ OAPI_RUNTIME_VERSION := 1.1.1
 NODE_VERSION := 24.18.0
 NPM_VERSION := 11.16.0
 
+# Get Go version from the `go` directive in go.mod. Without this, `go install
+# <tool>@version` picks whatever toolchain <tool>'s own dependency graph
+# requires as its minimum — which can be OLDER than go.mod's version. 
+GO_VERSION := $(shell awk '$$1 == "go" { print $$2; exit }' go.mod)
+
 # Default target
 all: clean frontend build
 
@@ -84,22 +89,21 @@ dev-tools: install-golangci-lint install-govulncheck install-deadcode
 	@echo "Development tools match CI."
 
 install-golangci-lint:
-	@echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_LINT_VERSION)
+	@echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION) (go$(GO_VERSION))..."
+	GOTOOLCHAIN=go$(GO_VERSION) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_LINT_VERSION)
 
 install-govulncheck:
-	@echo "Installing govulncheck $(GOVULNCHECK_VERSION)..."
-	go install golang.org/x/vuln/cmd/govulncheck@v$(GOVULNCHECK_VERSION)
+	@echo "Installing govulncheck $(GOVULNCHECK_VERSION) (go$(GO_VERSION))..."
+	GOTOOLCHAIN=go$(GO_VERSION) go install golang.org/x/vuln/cmd/govulncheck@v$(GOVULNCHECK_VERSION)
 
 install-deadcode:
-	@echo "Installing deadcode $(DEADCODE_VERSION)..."
-	go install golang.org/x/tools/cmd/deadcode@v$(DEADCODE_VERSION)
+	@echo "Installing deadcode $(DEADCODE_VERSION) (go$(GO_VERSION))..."
+	GOTOOLCHAIN=go$(GO_VERSION) go install golang.org/x/tools/cmd/deadcode@v$(DEADCODE_VERSION)
 
 # Fail early when the local runtime/tool versions differ from CI. Use the
 # repository .nvmrc (or mise) for Node, then run `make dev-tools` for Go tools.
 ci-tools-check:
-	@expected_go="go$$(awk '$$1 == "go" { print $$2; exit }' go.mod)"; \
-		[ "$$(go env GOVERSION)" = "$$expected_go" ] || { echo "$$expected_go required (found $$(go env GOVERSION))."; exit 1; }
+	@[ "$$(go env GOVERSION)" = "go$(GO_VERSION)" ] || { echo "go$(GO_VERSION) required (found $$(go env GOVERSION))."; exit 1; }
 	@[ "$$(node --version)" = "v$(NODE_VERSION)" ] || { echo "Node $(NODE_VERSION) required (found $$(node --version)); run 'nvm use' or 'mise use'."; exit 1; }
 	@[ "$$(npm --version)" = "$(NPM_VERSION)" ] || { echo "npm $(NPM_VERSION) required (found $$(npm --version))."; exit 1; }
 	@command -v golangci-lint >/dev/null 2>&1 || { echo "golangci-lint missing; run 'make dev-tools'."; exit 1; }
