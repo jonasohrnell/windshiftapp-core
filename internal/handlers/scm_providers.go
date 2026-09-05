@@ -133,9 +133,10 @@ func (h *SCMProviderHandler) CreateProvider(w http.ResponseWriter, r *http.Reque
 	validTypes := map[models.SCMProviderType]bool{
 		models.SCMProviderTypeGitHub: true,
 		models.SCMProviderTypeGitea:  true,
+		models.SCMProviderTypeGitLab: true,
 	}
 	if !validTypes[req.ProviderType] {
-		respondBadRequest(w, r, "Invalid provider type. Supported: github, gitea")
+		respondBadRequest(w, r, "Invalid provider type. Supported: github, gitea, gitlab")
 		return
 	}
 
@@ -265,9 +266,10 @@ func (h *SCMProviderHandler) UpdateProvider(w http.ResponseWriter, r *http.Reque
 	validTypes := map[models.SCMProviderType]bool{
 		models.SCMProviderTypeGitHub: true,
 		models.SCMProviderTypeGitea:  true,
+		models.SCMProviderTypeGitLab: true,
 	}
 	if req.ProviderType != "" && !validTypes[req.ProviderType] {
-		respondBadRequest(w, r, "Invalid provider type. Supported: github, gitea")
+		respondBadRequest(w, r, "Invalid provider type. Supported: github, gitea, gitlab")
 		return
 	}
 

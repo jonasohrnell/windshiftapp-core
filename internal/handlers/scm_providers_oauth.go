@@ -145,6 +145,22 @@ func (h *SCMProviderHandler) StartOAuth(w http.ResponseWriter, r *http.Request) 
 			url.QueryEscape(scopes),
 			state,
 		)
+	case models.SCMProviderTypeGitLab:
+		// GitLab OAuth - base_url is optional and defaults to gitlab.com
+		glBase := strings.TrimSuffix(baseURL.String, "/")
+		if glBase == "" {
+			glBase = scm.GitLabAPIURL
+		}
+		scopes := oauthScopes.String
+		// GitLab OAuth URL format: {base_url}/oauth/authorize
+		authURL = fmt.Sprintf(
+			"%s/oauth/authorize?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s",
+			glBase,
+			clientID.String,
+			url.QueryEscape(redirectURI),
+			url.QueryEscape(scopes),
+			state,
+		)
 	default:
 		respondBadRequest(w, r, "OAuth not supported for this provider type")
 		return
@@ -360,6 +376,30 @@ func (h *SCMProviderHandler) exchangeOAuthCode(ctx context.Context, params oauth
 			expiresAt:    tokens.ExpiresAt,
 		}, nil
 
+	case models.SCMProviderTypeGitLab:
+		cfg := scm.ProviderConfig{
+			ProviderType:      params.providerType,
+			AuthMethod:        models.SCMAuthMethodOAuth,
+			BaseURL:           params.baseURL,
+			OAuthClientID:     params.clientID,
+			OAuthClientSecret: params.clientSecret,
+		}
+		gitlabProvider, err := scm.NewGitLabProvider(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create GitLab provider: %w", err)
+		}
+
+		tokens, err := gitlabProvider.ExchangeCode(ctx, params.code, params.redirectURI)
+		if err != nil {
+			return nil, fmt.Errorf("failed to exchange code: %w", err)
+		}
+
+		return &oauthTokenResult{
+			accessToken:  tokens.AccessToken,
+			refreshToken: tokens.RefreshToken,
+			expiresAt:    tokens.ExpiresAt,
+		}, nil
+
 	default:
 		return nil, fmt.Errorf("OAuth not supported for provider type: %s", params.providerType)
 	}
@@ -440,6 +480,27 @@ func (h *SCMProviderHandler) fetchSCMUserInfo(ctx context.Context, providerType 
 		scmUser, err := giteaProvider.GetCurrentUser(ctx)
 		if err != nil {
 			slog.Warn("failed to get Gitea user info", slog.String("component", "scm"), slog.Any("error", err))
+			return info
+		}
+		info.username = scmUser.Username
+		info.userID = scmUser.ID
+		info.avatarURL = scmUser.AvatarURL
+
+	case models.SCMProviderTypeGitLab:
+		cfg := scm.ProviderConfig{
+			ProviderType:     providerType,
+			AuthMethod:       models.SCMAuthMethodOAuth,
+			BaseURL:          baseURL,
+			OAuthAccessToken: accessToken,
+		}
+		gitlabProvider, err := scm.NewGitLabProvider(cfg)
+		if err != nil {
+			slog.Warn("failed to create GitLab provider for user info", slog.String("component", "scm"), slog.Any("error", err))
+			return info
+		}
+		scmUser, err := gitlabProvider.GetCurrentUser(ctx)
+		if err != nil {
+			slog.Warn("failed to get GitLab user info", slog.String("component", "scm"), slog.Any("error", err))
 			return info
 		}
 		info.username = scmUser.Username

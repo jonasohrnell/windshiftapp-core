@@ -13,6 +13,7 @@ type SCMProviderType string
 const (
 	SCMProviderTypeGitHub SCMProviderType = "github"
 	SCMProviderTypeGitea  SCMProviderType = "gitea"
+	SCMProviderTypeGitLab SCMProviderType = "gitlab"
 )
 
 // SCMAuthMethod represents the authentication method for an SCM provider

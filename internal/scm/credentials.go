@@ -170,13 +170,23 @@ func (r *CredentialResolver) GetCredentialsByConnectionID(ctx context.Context, c
 		creds.OAuthExpiresAt = &wsOAuthExpiresAt.Time
 	}
 
-	// Decrypt OAuth client secret if present
+	// Decrypt OAuth client secret if present. It's only actually consumed for
+	// OAuth token refresh (see RefreshOAuthTokenIfNeeded) — for a PAT or
+	// GitHub App connection, a stale/undecryptable value left over here (e.g.
+	// after an encryption-key rotation, or a provider that was briefly
+	// configured for OAuth before switching auth methods) must not block
+	// credential resolution for the auth method actually in use.
 	if providerOAuthClientSecretEnc.Valid && providerOAuthClientSecretEnc.String != "" {
 		secret, err := r.encryption.Decrypt(providerOAuthClientSecretEnc.String)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decrypt OAuth client secret: %w", err)
+			if creds.AuthMethod == models.SCMAuthMethodOAuth {
+				return nil, fmt.Errorf("failed to decrypt OAuth client secret: %w", err)
+			}
+			slog.Warn("failed to decrypt OAuth client secret; ignoring for non-OAuth connection",
+				slog.String("component", "scm"), slog.Int("connection_id", connectionID), slog.Any("error", err))
+		} else {
+			creds.OAuthClientSecret = secret
 		}
-		creds.OAuthClientSecret = secret
 	}
 
 	// Resolve credentials based on auth method
@@ -282,13 +292,20 @@ func (r *CredentialResolver) GetCredentialsForUser(ctx context.Context, connecti
 		OAuthClientID: oauthClientID.String,
 	}
 
-	// Decrypt OAuth client secret if present
+	// Decrypt OAuth client secret if present. See the identical comment in
+	// GetCredentialsByConnectionID: it's only consumed for OAuth refresh, so a
+	// stale/undecryptable value must not block PAT/GitHub App resolution.
 	if oauthClientSecretEnc.Valid && oauthClientSecretEnc.String != "" {
 		secret, err := r.encryption.Decrypt(oauthClientSecretEnc.String)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decrypt OAuth client secret: %w", err)
+			if authMethod == models.SCMAuthMethodOAuth {
+				return nil, fmt.Errorf("failed to decrypt OAuth client secret: %w", err)
+			}
+			slog.Warn("failed to decrypt OAuth client secret; ignoring for non-OAuth connection",
+				slog.String("component", "scm"), slog.Int("connection_id", connectionID), slog.Any("error", err))
+		} else {
+			creds.OAuthClientSecret = secret
 		}
-		creds.OAuthClientSecret = secret
 	}
 
 	// Resolve credentials based on auth method
@@ -513,6 +530,19 @@ func (r *CredentialResolver) RefreshOAuthTokenIfNeeded(ctx context.Context, conn
 			return "", fmt.Errorf("failed to create provider for refresh: %w", err)
 		}
 		newTokens, err = giteaProvider.RefreshToken(ctx, creds.OAuthRefreshToken)
+		if err != nil {
+			if errors.Is(err, ErrRefreshTokenInvalid) {
+				r.invalidateStoredCredentials(ctx, creds, connectionID)
+			}
+			return "", fmt.Errorf("failed to refresh token: %w", err)
+		}
+	case models.SCMProviderTypeGitLab:
+		var gitlabProvider *GitLabProvider
+		gitlabProvider, err = NewGitLabProvider(cfg)
+		if err != nil {
+			return "", fmt.Errorf("failed to create provider for refresh: %w", err)
+		}
+		newTokens, err = gitlabProvider.RefreshToken(ctx, creds.OAuthRefreshToken)
 		if err != nil {
 			if errors.Is(err, ErrRefreshTokenInvalid) {
 				r.invalidateStoredCredentials(ctx, creds, connectionID)

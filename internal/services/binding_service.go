@@ -1820,6 +1820,15 @@ func deriveCloneURL(providerType, baseURL, slug string) (string, error) {
 			return "", fmt.Errorf("gitea base url: %w", err)
 		}
 		host = h
+	case "gitlab":
+		host = "gitlab.com"
+		if baseURL != "" {
+			h, err := hostFromURL(baseURL)
+			if err != nil {
+				return "", fmt.Errorf("gitlab base url: %w", err)
+			}
+			host = h
+		}
 	default:
 		return "", fmt.Errorf("unsupported scm provider type %q", providerType)
 	}

@@ -506,6 +506,8 @@ export default {
       authMethod: 'Способ аутентификации',
       baseUrl: 'Базовый URL',
       baseUrlPlaceholder: 'Введите URL собственного сервера Gitea/Forgejo',
+      baseUrlOptionalGitlab:
+        'Оставьте пустым для gitlab.com или укажите URL вашего собственного сервера GitLab',
       callbackUrl: 'URL перенаправления OAuth',
       copy: 'Копировать',
       copied: 'Скопировано',

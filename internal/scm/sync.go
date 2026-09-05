@@ -1411,6 +1411,8 @@ func (s *SyncService) resolveRepoAndProvider(ctx context.Context, workspaceRepoI
 			resolvedBaseURL = "https://github.com"
 		case models.SCMProviderTypeGitea:
 			resolvedBaseURL = "https://gitea.com"
+		case models.SCMProviderTypeGitLab:
+			resolvedBaseURL = "https://gitlab.com"
 		}
 	}
 
@@ -1452,8 +1454,11 @@ func (s *SyncService) CreateBranchForRepository(ctx context.Context, workspaceRe
 		return "", fmt.Errorf("failed to create branch: %w", err)
 	}
 
-	// Both GitHub and Gitea use /tree/ for branch URLs
+	// GitHub and Gitea use /tree/ for branch URLs; GitLab routes them under /-/tree/.
 	branchURL := fmt.Sprintf("%s/%s/tree/%s", rc.BaseURL, rc.RepositoryName, branchName)
+	if rc.ProviderType == models.SCMProviderTypeGitLab {
+		branchURL = fmt.Sprintf("%s/%s/-/tree/%s", rc.BaseURL, rc.RepositoryName, branchName)
+	}
 
 	slog.Debug("Created branch", slog.String("component", "scm"), slog.String("branch", branchName), slog.String("repository", rc.RepositoryName))
 	return branchURL, nil
@@ -1558,6 +1563,8 @@ func (s *SyncService) CreatePullRequestForRepository(ctx context.Context, worksp
 		switch rc.ProviderType {
 		case models.SCMProviderTypeGitea:
 			prURL = fmt.Sprintf("%s/%s/pulls/%d", rc.BaseURL, rc.RepositoryName, pr.Number)
+		case models.SCMProviderTypeGitLab:
+			prURL = fmt.Sprintf("%s/%s/-/merge_requests/%d", rc.BaseURL, rc.RepositoryName, pr.Number)
 		default:
 			prURL = fmt.Sprintf("%s/%s/pull/%d", rc.BaseURL, rc.RepositoryName, pr.Number)
 		}

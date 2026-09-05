@@ -1,5 +1,5 @@
 // Package scm provides SCM (Source Control Management) provider integration
-// for GitHub and Gitea/Forgejo.
+// for GitHub, Gitea/Forgejo, and GitLab.
 package scm
 
 import (
@@ -11,7 +11,7 @@ import (
 
 // Provider defines the interface that all SCM providers must implement
 type Provider interface {
-	// GetType returns the provider type (github, gitea)
+	// GetType returns the provider type (github, gitea, gitlab)
 	GetType() models.SCMProviderType
 
 	// TestConnection tests if the provider connection is working
@@ -85,6 +85,11 @@ type ListRepositoriesOptions struct {
 	Organization string // Filter by organization (if supported)
 	Visibility   string // public, private, all
 	Sort         string // created, updated, pushed, full_name
+	// Search restricts results server-side to repositories/projects matching
+	// the query, for providers that support it (currently GitLab). Providers
+	// without native search support ignore it; the caller falls back to
+	// paging through the unfiltered list.
+	Search string
 }
 
 // ListPROptions contains options for listing pull requests
@@ -336,6 +341,8 @@ func NewProvider(cfg ProviderConfig) (Provider, error) {
 		return NewGitHubProvider(cfg)
 	case models.SCMProviderTypeGitea:
 		return NewGiteaProvider(cfg)
+	case models.SCMProviderTypeGitLab:
+		return NewGitLabProvider(cfg)
 	default:
 		return nil, ErrUnsupportedProvider
 	}
@@ -473,4 +480,5 @@ type IssueMilestone struct {
 // Default API URLs for each provider
 const (
 	GitHubAPIURL = "https://api.github.com"
+	GitLabAPIURL = "https://gitlab.com"
 )

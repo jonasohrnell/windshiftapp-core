@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { useDebounce } from 'runed';
   import { api } from '../api.js';
   import Button from '../components/Button.svelte';
   import Input from '../components/Input.svelte';
@@ -27,6 +28,10 @@
     await loadRepositories();
   });
 
+  // Search is forwarded to the SCM provider for server-side search
+  // against all projects, not just the pages already fetched. Providers 
+  // without native search just ignore the param and return the 
+  // unfiltered page; filteredRepos below still narrows those.
   async function loadRepositories(resetPage = true) {
     if (resetPage) {
       page = 1;
@@ -37,10 +42,11 @@
     errorCode = null;
 
     try {
-      const result = await api.workspaceSCM.getAvailableRepos(workspaceId, connection.id, {
-        page,
-        per_page: perPage
-      });
+      const params = { page, per_page: perPage };
+      const query = searchQuery.trim();
+      if (query) params.search = query;
+
+      const result = await api.workspaceSCM.getAvailableRepos(workspaceId, connection.id, params);
 
       if (result.error) {
         error = result.error;
@@ -68,6 +74,11 @@
     page += 1;
     await loadRepositories(false);
   }
+
+  // Debounced re-fetch on search input so each keystroke doesn't hit the SCM
+  // API — the query goes to the provider (page 1) rather than only filtering
+  // whatever pages happen to be loaded already.
+  const debouncedSearch = useDebounce(() => loadRepositories(true), 350);
 
   function toggleRepo(repo) {
     if (repo.is_linked) return; // Already linked, can't select
@@ -185,6 +196,7 @@
         <Input
           type="text"
           bind:value={searchQuery}
+          oninput={debouncedSearch}
           placeholder={t('pickers.searchRepositories')}
           class="pl-10"
           size="small"
@@ -277,8 +289,10 @@
           {/each}
         </div>
 
-        <!-- Load More -->
-        {#if hasMore && !searchQuery}
+        <!-- Load More (search may now be server-side and paginated the same way,
+             so more matches can exist beyond the first page even while
+             searching) -->
+        {#if hasMore}
           <div class="flex justify-center py-4">
             {#if loading}
               <Loader2 class="w-5 h-5 animate-spin" style="color: var(--ds-text-subtle);" />

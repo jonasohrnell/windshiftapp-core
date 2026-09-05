@@ -618,8 +618,8 @@ func mkdirTempPreferring(preferredRoot, pattern string) (string, error) {
 
 // writeAskpassHelper creates a private (0700) directory plus a script that
 // answers git's prompts from AGENT_GIT_TOKEN. The username "oauth2" works for
-// both GitHub and Gitea (both accept any non-empty username with a token in the
-// password slot). The caller removes dirPath after the git invocation.
+// GitHub, Gitea, and GitLab (all accept any non-empty username with a token in
+// the password slot). The caller removes dirPath after the git invocation.
 func writeAskpassHelper(tempRoot string) (dirPath, scriptPath string, err error) {
 	dirPath, err = mkdirTempPreferring(tempRoot, "windshift-askpass-*")
 	if err != nil {

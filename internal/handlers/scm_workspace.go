@@ -454,10 +454,17 @@ func (h *SCMWorkspaceHandler) ListAvailableRepositories(w http.ResponseWriter, r
 	if perPage < 1 || perPage > 100 {
 		perPage = 30
 	}
+	// Optional server-side search (currently honored by the GitLab provider;
+	// others ignore it and return the unfiltered page).
+	search := strings.TrimSpace(r.URL.Query().Get("search"))
+	if len(search) > 200 {
+		search = search[:200]
+	}
 
 	opts := scm.ListRepositoriesOptions{
 		Page:    page,
 		PerPage: perPage,
+		Search:  search,
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
@@ -808,6 +815,23 @@ func (h *SCMWorkspaceHandler) StartWorkspaceOAuth(w http.ResponseWriter, r *http
 		authURL = fmt.Sprintf(
 			"%s/login/oauth/authorize?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s",
 			strings.TrimSuffix(oauthCfg.BaseURL, "/"),
+			oauthCfg.ClientID,
+			url.QueryEscape(redirectURI),
+			url.QueryEscape(scopes),
+			state,
+		)
+	case models.SCMProviderTypeGitLab:
+		glBase := strings.TrimSuffix(oauthCfg.BaseURL, "/")
+		if glBase == "" {
+			glBase = scm.GitLabAPIURL
+		}
+		scopes := "read_user read_api read_repository write_repository"
+		if oauthCfg.Scopes != "" {
+			scopes = oauthCfg.Scopes
+		}
+		authURL = fmt.Sprintf(
+			"%s/oauth/authorize?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s",
+			glBase,
 			oauthCfg.ClientID,
 			url.QueryEscape(redirectURI),
 			url.QueryEscape(scopes),

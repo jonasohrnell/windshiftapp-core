@@ -6,7 +6,7 @@
     GitBranch, Plus, Edit, Trash2, RefreshCw,
     TestTube, CheckCircle, XCircle
   } from '@lucide/svelte';
-  import { IconBrandGithub as Github } from '@tabler/icons-svelte-runes';
+  import { IconBrandGithub as Github, IconBrandGitlab as Gitlab } from '@tabler/icons-svelte-runes';
   import Button from '../components/Button.svelte';
   import CopyButton from '../components/CopyButton.svelte';
   import Modal from '../dialogs/Modal.svelte';
@@ -49,10 +49,11 @@
   // Workspace restriction state
   let allowedWorkspaceIds = $state([]);
 
-  // Provider types (only GitHub and Gitea supported)
+  // Provider types
   const providerTypes = [
     { value: 'github', label: 'GitHub', icon: Github },
     { value: 'gitea', label: 'Gitea / Forgejo', icon: GitBranch },
+    { value: 'gitlab', label: 'GitLab', icon: Gitlab },
   ];
 
   // Auth methods
@@ -78,6 +79,7 @@
   const defaultScopes = {
     github: 'repo read:user user:email',
     gitea: 'read:user read:repository write:repository',
+    gitlab: 'read_user read_api read_repository write_repository',
   };
 
   // Form state
@@ -546,12 +548,19 @@
         </div>
       </div>
 
-      <!-- Base URL (for self-hosted Gitea/Forgejo) -->
+      <!-- Base URL (for self-hosted Gitea/Forgejo; optional for GitLab) -->
       {#if formData.provider_type === 'gitea'}
         <FormField label={t('settings.scmProviders.baseUrl')} error={formErrors.base_url} helper={t('settings.scmProviders.baseUrlPlaceholder')}>
           <Input
             bind:value={formData.base_url}
             placeholder="https://gitea.example.com"
+          />
+        </FormField>
+      {:else if formData.provider_type === 'gitlab'}
+        <FormField label={t('settings.scmProviders.baseUrl')} error={formErrors.base_url} helper={t('settings.scmProviders.baseUrlOptionalGitlab')}>
+          <Input
+            bind:value={formData.base_url}
+            placeholder="https://gitlab.com"
           />
         </FormField>
       {/if}
@@ -578,7 +587,7 @@
             <p class="text-xs" style="color: var(--ds-text-subtle);">{t('settings.scmProviders.enterSlugForCallback')}</p>
           {/if}
           <DescriptionText variant="subtlest">
-            {t('settings.scmProviders.useThisUrl')} {formData.provider_type === 'github' ? 'GitHub' : 'Gitea'}
+            {t('settings.scmProviders.useThisUrl')} {providerTypes.find(p => p.value === formData.provider_type)?.label ?? formData.provider_type}
           </DescriptionText>
         </div>
       {/snippet}

@@ -460,6 +460,7 @@ export default {
       authMethod: 'Authentication Method',
       baseUrl: 'Base URL',
       baseUrlPlaceholder: 'Enter your self-hosted Gitea/Forgejo instance URL',
+      baseUrlOptionalGitlab: 'Leave blank for gitlab.com, or enter your self-managed GitLab instance URL',
       callbackUrl: 'Callback URL',
       copy: 'Copy',
       copied: 'Copied!',

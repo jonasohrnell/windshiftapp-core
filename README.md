@@ -33,7 +33,7 @@ It ships as a single Go binary with the Svelte frontend built in.
 - Customize the workflow around your team - configure item types, statuses, fields, screens, priorities, and recurring work.
 - Keep context - add rich descriptions, comments, mentions, attachments, collections, and knowledge pages.
 - Bring customers into the system - share public boards and accept external requests through a customer portal.
-- Connect the tools you already use - integrate GitHub, Gitea, and Forgejo, import Jira projects, and send email or webhook notifications.
+- Connect the tools you already use - integrate GitHub, GitLab, Gitea, and Forgejo, import Jira projects, and send email or webhook notifications.
 - Add the capabilities you need - extend work management with test management, time tracking, or asset management.
 
 ## Get started

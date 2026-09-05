@@ -308,8 +308,13 @@ func completionRequestImageCount(request llm.CompletionRequest) int {
 // connection that works fine in-process. Gitea has no well-known default; an
 // empty base URL there stays a config error (caught by the Host=="" check).
 func gitProxyBaseURL(providerType, stored string) string {
-	if stored == "" && providerType == "github" {
-		return "https://github.com"
+	if stored == "" {
+		switch providerType {
+		case "github":
+			return "https://github.com"
+		case "gitlab":
+			return "https://gitlab.com"
+		}
 	}
 	return stored
 }
